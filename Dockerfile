@@ -1,13 +1,18 @@
-FROM node:10.15.0-alpine
+FROM jrottenberg/ffmpeg:4.0-ubuntu
 
-WORKDIR /usr/src/app
+RUN mkdir /usr/src/nodemediaserver
+WORKDIR /usr/src/nodemediaserver
+RUN apt-get update
+RUN apt-get -yqq install npm
+RUN apt-get -yqq install curl
+RUN apt-get -yqq install vim
 
-COPY package*.json ./
-
+RUN npm install n -g
+RUN n 9.2.1
 RUN npm i
 
 COPY . .
 
-EXPOSE 1935 8000
+ENTRYPOINT [ "node", "app"]
 
-CMD ["node","app.js"]
+# docker run -it -p 1935:1935 -p 8000:8000 -p 8443:8443 -v $PWD/media/:/usr/src/nodemediaserver/media -d mynms
