@@ -9,9 +9,9 @@ RUN apt-get -yqq install vim
 
 RUN npm install n -g
 RUN n 9.2.1
-RUN npm i
 
 COPY . .
+RUN npm i
 
 ENTRYPOINT [ "node", "app"]
 
