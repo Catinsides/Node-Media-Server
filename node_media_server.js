@@ -10,6 +10,7 @@ const NodeRtmpServer = require('./node_rtmp_server');
 const NodeHttpServer = require('./node_http_server');
 const NodeTransServer = require('./node_trans_server');
 const NodeRelayServer = require('./node_relay_server');
+const Node1078Server = require('./jt1078/node_1078_server');
 const context = require('./node_core_ctx');
 const Package = require("./package.json");
 
@@ -47,6 +48,11 @@ class NodeMediaServer {
         this.nls = new NodeRelayServer(this.config);
         this.nls.run();
       }
+    }
+
+    if (this.config.s1078) {
+      this.s1078 = new Node1078Server(this.config);
+      this.s1078.run();
     }
 
     process.on('uncaughtException', function (err) {
@@ -90,6 +96,9 @@ class NodeMediaServer {
     }
     if (this.nis) {
       this.nis.stop();
+    }
+    if (this.s1078) {
+      this.s1078.stop();
     }
   }
 
