@@ -33,6 +33,12 @@ const error = (...args) => {
   console.log(logTime(), process.pid, chalk.bold.red('[ERROR]'), ...args);
 };
 
+const warning = (...args) => {
+  if (logType < LOG_TYPES.ERROR) return;
+
+  console.log(logTime(), process.pid, chalk.bold.yellow('[WARNING]'), ...args);
+};
+
 const debug = (...args) => {
   if (logType < LOG_TYPES.DEBUG) return;
 
@@ -49,5 +55,5 @@ module.exports = {
   LOG_TYPES,
   setLogType,
 
-  log, error, debug, ffdebug
+  log, error, warning, debug, ffdebug
 }
