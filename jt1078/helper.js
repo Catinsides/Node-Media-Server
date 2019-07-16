@@ -1,4 +1,3 @@
-const chalk = require('chalk');
 const Logger = require("../node_core_logger");
 
 const bufSlicer = {
@@ -81,7 +80,7 @@ const RtpPacket = {
                 packet.dateLength = buff.readInt16BE(16);
                 packet.payload = buff.slice(18, packet.dateLength);
             } else if (ft === 3) {
-                packet.timeStamp = parseInt(parseInt(bufSlicer.getTimeStamp(buff).toString('hex'), 16) / 1000);
+                packet.timeStamp = parseInt(bufSlicer.getTimeStamp(buff).toString('hex'), 16);
                 packet.dataLength = parseInt(buff.slice(24, 26).toString('hex'), 16);
                 packet.payload = buff.slice(26, packet.dateLength);
 
@@ -92,14 +91,13 @@ const RtpPacket = {
                     packet.payload = packet.payload.slice(hisiHeadLen, packet.payload.length);
                 }
             } else if (0 <= ft && ft <= 2) {
-                packet.timeStamp = parseInt(parseInt(bufSlicer.getTimeStamp(buff).toString('hex'), 16) / 1000);
+                packet.timeStamp = parseInt(bufSlicer.getTimeStamp(buff).toString('hex'), 16);
                 packet.lastIFI = parseInt(bufSlicer.getIFrameInterval(buff).toString('hex'), 16);
                 packet.lastFI = parseInt(bufSlicer.getFrameInterval(buff).toString('hex'), 16);
                 packet.dataLength = parseInt(bufSlicer.getDataLen(buff).toString('hex'), 16);
                 packet.payload = bufSlicer.getMedia(buff);
             }
 
-            packet.isValidSimNo = packet.simNo && /^[0-9]*$/.test(this.simNo);
             packet.isAudioFrame = packet.frameTypeVal.ft === 3;
             packet.isVedioFrame = packet.mediaType === 98;
             packet.isTpData = packet.frameTypeVal === 4;

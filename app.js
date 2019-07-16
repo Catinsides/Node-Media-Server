@@ -28,7 +28,7 @@ const config = {
     secret: 'nodemedia2017privatekey'
   },
   // trans: {
-  //   ffmpeg: '/usr/bin/ffmpeg',
+  //   ffmpeg: '/usr/local/bin/ffmpeg',
   //   tasks: [
   //     {
   //       app: 'live',
@@ -45,7 +45,7 @@ const config = {
   //   ]
   // },
   s1078: {
-    ffmpeg: '/usr/bin/ffmpeg',
+    ffmpeg: '/usr/local/bin/ffmpeg',
     port: 7612,
     ping_timeout: 60
   }

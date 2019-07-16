@@ -14,18 +14,15 @@ class Node1078Channel {
         this.id = this.stream_id;
         // this.isStreaming = false;
         this.localhost = os.networkInterfaces().eth0[0].address;
-        this.publishStreamPath = `rtmp://${this.localhost}:${this.config.rtmp.port}/live/stream_${this.stream_id}`
-        this.rtpPacket = null;
+        this.port = this.config.rtmp.port;
+        this.publishStreamPath = `rtmp://${this.localhost}:${this.port}/live/stream_${this.stream_id}`
+        this.rtpPacket = {
+            payload: Buffer.alloc(0)
+        };
         this.rtpPackets = [];
         this.FFMPEG = config.s1078.ffmpeg;
-
-        this.audio_process = [];
+        this.audio_process = null;
         this.video_process = null;
-        this.merge_process = {
-            type: '',
-            process: null
-        };
-
         context.channels.set(this.id, this);
     }
 
@@ -55,12 +52,8 @@ class Node1078Channel {
     }
     
     stop() {
-        this.closeProcess(this.audio_process);
-        this.closeProcess(this.video_process);
-        if (this.merge_process.process) {
-            this.closeProcess(this.merge_process.process);
-            this.merge_process.type = '';
-        }
+        // this.stopProcess(this.audio_process);
+        this.stopProcess(this.video_process);
 
         // if (this.isStreaming) {
         //     this.isStreaming = false;
@@ -72,16 +65,15 @@ class Node1078Channel {
 
     dispatch(rtpPacket) {
         if (rtpPacket.isAudioFrame) {
-            this.audioHandler(rtpPacket);
+            // this.audioHandler(rtpPacket);
         } else if (rtpPacket.isVedioFrame) {
             this.videoHandler(rtpPacket);
         }
-        this.mergeHandler();
     }
 
     audioHandler(rtpPacket) {
-        if (this.audio_process.length === 0) {
-            let cmds1 = [
+        if (!this.audio_process) {
+            var cmds = [
                 '-loglevel', 'panic',
                 '-probesize', '32',
                 '-f', 'g726le',
@@ -94,33 +86,14 @@ class Node1078Channel {
                 '-f', 'mp3',
                 'pipe:1'
             ];
-            let cmds2 = [
-                '-i', '-',
-                '-vn',
-                '-c', 'copy',
-                '-f', 'flv',
-                this.publishStreamPath + '_a'
-            ];
-
-            let child1 = spawn(this.FFMPEG, cmds1);
-            let child2 = spawn(this.FFMPEG, cmds2);
-
-            child1.stdin.write(rtpPacket.payload);
-            child1.stdout.pipe(child2.stdin);
-            this.audio_process = [child1, child2];
-            this.audio_process.on('exit', _ => {
-                // this.closeProcess(this.audio_process);
-            });
-            Logger.log(`[1078 channel new audio publish] id=${this.id}`, this.publishStreamPath + '_a');
+            this.audio_process = spawn(this.FFMPEG, cmds);
         }
-
-        let [ child1, child2 ] = this.audio_process;
-        child1.stdin.write(rtpPacket.payload);
+        this.audio_process.stdin.write(rtpPacket.payload);
     }
 
     videoHandler(rtpPacket) {
         if (!this.video_process) {
-            let cmds = [
+            var cmds = [
                 '-loglevel', 'panic', // 'debug',
                 '-probesize', '32',
                 '-re',
@@ -132,103 +105,24 @@ class Node1078Channel {
                 '-tune', 'zerolatency',
                 '-profile:v', 'baseline',
                 '-f', 'flv',
-                this.publishStreamPath + '_v'
+                this.publishStreamPath
             ];
             this.video_process = spawn(this.FFMPEG, cmds);
-            this.video_process.on('exit', _ => {
-                // this.closeProcess(this.video_process);
-            });
-            Logger.log(`[1078 channel new video publish] id=${this.id}`, this.publishStreamPath + '_v');
+            Logger.log(`[1078 channel new publish] id=${this.id}`, this.publishStreamPath);
         }
-
         this.video_process.stdin.write(rtpPacket.payload);
     }
 
-    mergeHandler(rtpPacket) {
-        var isOnlyAudio = this.audio_process.length === 2 && this.video_process == null,
-            isOnlyVideo = this.audio_process.length === 0 && this.video_process != null,
-            isBoth = this.audio_process.length === 2 && this.video_process != null;
-        var rtmpUrl = this.publishStreamPath, cmds = [], type = '';
-        var url_a = this.publishStreamPath + '_a', url_v = this.publishStreamPath + '_v';
-
-        if (isBoth) {
-            if (this.merge_process.type === 'a' || this.merge_process.type === 'v') {
-                this.closeProcess(this.merge_process.process);
-                this.merge_process.type = '';
-            }
-
-            type = 'av';
-            cmds = [
-                '-loglevel', 'panic',
-                '-probesize', '32',
-                '-i', url_a,
-                '-i', url_v,
-                '-codec:v', 'copy',
-                '-ac', '2',
-                '-codec:a', 'aac',
-                '-strict', '-2',
-                '-f', 'flv',
-                rtmpUrl
-            ];
-        } else if (isOnlyAudio) {
-            if (this.merge_process.type === '') {
-                type = 'a';
-                cmds = [
-                    '-loglevel', 'panic',
-                    '-probesize', '32',
-                    '-i', url_a,
-                    '-codec:v', 'copy',
-                    '-ac', '2',
-                    '-codec:a', 'aac',
-                    '-strict', '-2',
-                    '-f', 'flv',
-                    rtmpUrl
-                ];
-            }
-        } else if (isOnlyVideo) {
-            if (this.merge_process.type === '') {
-                type = 'v';
-                cmds = [
-                    '-loglevel', 'panic',
-                    '-probesize', '32',
-                    '-i', url_v,
-                    '-codec:v', 'copy',
-                    '-ac', '2',
-                    '-codec:a', 'aac',
-                    '-strict', '-2',
-                    '-f', 'flv',
-                    rtmpUrl
-                ];
-            }
-        }
-        if (cmds.length > 0 && this.merge_process.type === '') {
-            this.merge_process.type = type;
-            this.merge_process.process = spawn(this.FFMPEG, cmds);
-        }
-    }
-
-    closeProcess(_processes) {
-        if (Array.isArray(_processes)) {
-            _processes.forEach(pr => {
-                this._closeProcess(pr);
-            });
-            _processes = [];
-        } else {
-            this._closeProcess(_processes);
+    stopProcess(_processes) {
+        if (_processes) {
+            _processes.stdin.pause();
+            _processes.stdin.end();
+            _processes.stdin.destroy();
+            _processes.stdout.destroy();
+            _processes.kill('SIGKILL');
             _processes = null;
         }
     }
-
-    _closeProcess(_process) {
-        if (_process) {
-            _process.stdin.pause();
-            _process.stdin.end();
-            _process.stdin.destroy();
-            _process.stdout.destroy();
-            _process.kill('SIGKILL');
-        }
-    }
-
 }
 
 module.exports = Node1078Channel;

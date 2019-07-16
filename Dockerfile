@@ -31,4 +31,4 @@ ENTRYPOINT [ "node", "app"]
 #CMD ["node","app.js"]
 ### Origin End
 
-# docker run -it -p 1935:1935 -p 8000:8000 -p 8443:8443 -v $PWD/media/:/usr/src/nodemediaserver/media -d mynms
+# docker run -it -p 1935:1935 -p 8000:8000 -p 8443:8443 -p 7612:7612 -v $PWD/media/:/usr/src/nodemediaserver/media -d mynms

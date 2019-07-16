@@ -110,16 +110,23 @@ class Node1078Session {
 
     splitRTPPacketPlus(data) {
         var simNo = '', channelNo  = '';
+        var isValidSimNo = false, isValidChannel = false;
 
         try {
             simNo = data.toString('hex', 8, 14);
             channelNo = data.toString('hex', 14, 15);
+            isValidSimNo = simNo && /^[0-9]*$/.test(simNo);
+            isValidChannel = parseInt(channelNo) !== 0 && !isNaN(parseInt(channelNo));
         } catch (e) {
             Logger.error('SimNo or ChannelNo decode failed. The origin data is ', data && data.toString('hex'));
         }
 
-        if (!(simNo && channelNo)) {
-            Logger.warning('SimNo or ChannelNo is invalid.');
+        if (!isValidSimNo) {
+            Logger.warning('SimNo is invalid: ', simNo, ', origin data: ', data.toString('hex'));
+            return;
+        }
+        if (!isValidChannel) {
+            Logger.warning('ChannelNo is invalid: ', channelNo, ', origin data: ', data.toString('hex'));
             return;
         }
 
