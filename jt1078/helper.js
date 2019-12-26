@@ -1,6 +1,7 @@
 const Logger = require("../node_core_logger");
 const { spawnSync } = require('child_process');
-const { existsSync } = require('fs');
+const { existsSync, mkdirSync } = require('fs');
+const { dirname } = require('path');
 
 const bufSlicer = {
     getDefaultHead() {
@@ -116,10 +117,23 @@ const mkfifoSync = function (path, permission = 644) {
     if (!existsSync(path) || p.status !== 0) {
         throw new Error(`Create fifo failed. Path is ${path}`);
     }
+    return path;
+};
+
+const mkdirsSync = function (filePath) {
+    if (existsSync(filePath)) {
+        return true;
+    } else {
+        if (mkdirsSync(dirname(filePath))) {
+            mkdirSync(filePath);
+            return true;
+        }
+    }
 };
 
 module.exports = {
     bufSlicer,
     RtpPacket,
     mkfifoSync,
+    mkdirsSync,
 }

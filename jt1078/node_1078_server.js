@@ -3,8 +3,9 @@ const Net = require('net');
 const Node1078Session = require('./node_1078_session');
 const NodeCoreUtils = require('../node_core_utils');
 const context = require('../node_core_ctx');
-const fs = require('fs');
 const S1078_PORT = 7612;
+const { accessSync, constants } = require('fs');
+const { mkdirsSync } = require("./helper");
 
 class Node1078Server {
     constructor(config) {
@@ -18,11 +19,13 @@ class Node1078Server {
 
     run() {
         try {
-            fs.accessSync(this.config.s1078.ffmpeg, fs.constants.X_OK);
+            accessSync(this.config.s1078.ffmpeg, constants.X_OK);
         } catch (error) {
             Logger.error(`Node Media 1078 Server startup failed. ffmpeg:${this.config.s1078.ffmpeg} cannot be executed.`);
             return;
         }
+
+        mkdirsSync(this.config.s1078.pipes_folder);
 
         this.tcpServer.listen(this.port, () => {
             Logger.log(`Node Media 1078 Server started on port: ${this.port}`);

@@ -46,6 +46,7 @@ const config = {
   // },
   s1078: {
     ffmpeg: '/usr/local/bin/ffmpeg',
+    pipes_folder: '/tmp/nms_1078_pipes',
     port: 7612,
     ping_timeout: 60
   }
