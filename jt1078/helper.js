@@ -1,4 +1,6 @@
 const Logger = require("../node_core_logger");
+const { spawnSync } = require('child_process');
+const { existsSync } = require('fs');
 
 const bufSlicer = {
     getDefaultHead() {
@@ -47,7 +49,6 @@ const bufSlicer = {
         return buff.slice(30);
     }
 };
-exports.bufSlicer = bufSlicer;
 
 const RtpPacket = {
     create: buff => {
@@ -110,4 +111,15 @@ const RtpPacket = {
     }
 };
 
-exports.RtpPacket = RtpPacket;
+const mkfifoSync = function (path, permission = 644) {
+    const p = spawnSync('mkfifo', [path, '-m', permission], { stdio: 'ignore' });
+    if (!existsSync(path) || p.status !== 0) {
+        throw new Error(`Create fifo failed. Path is ${path}`);
+    }
+};
+
+module.exports = {
+    bufSlicer,
+    RtpPacket,
+    mkfifoSync,
+}
