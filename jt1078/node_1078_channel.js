@@ -32,8 +32,10 @@ class Node1078Channel {
     }
 
     pushPacket(buff) {
-        var rtpPacket = RtpPacket.create(buff);
-        this.rtpPackets.push(rtpPacket);
+        var rtpPacket = new RtpPacket(buff);
+        if (rtpPacket && rtpPacket.isValid) {
+            this.rtpPackets.push(rtpPacket);
+        }
     }
 
     run() {

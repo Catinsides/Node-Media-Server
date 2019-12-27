@@ -1,14 +1,10 @@
 const RTMP_PING_TIMEOUT = 30000;
-const AMF = require("../node_core_amf");
+// const AMF = require("../node_core_amf");
 const context = require("../node_core_ctx");
 const Logger = require("../node_core_logger");
 const NodeCoreUtils = require("../node_core_utils");
 const Node1078Channel = require('./node_1078_channel');
-const { bufSlicer } = require('./helper');
-const HEAD = bufSlicer.getDefaultHead();
-const HEXOFHEAD = Buffer.from(HEAD, 'hex');
-const HEXOFVPXCC = Buffer.from([0x81], 'hex');
-const VPXCCHEAD = Buffer.concat([HEXOFHEAD, HEXOFVPXCC]);
+const { VPXCCHEAD } = require('./helper');
 
 class Node1078Session {
     constructor(config, socket) {
@@ -51,17 +47,17 @@ class Node1078Session {
     }
 
     onSocketClose() {
-        // Logger.log('onSocketClose');
+        Logger.log('onSocketClose');
         this.stop();
     }
 
     onSocketError(e) {
-        // Logger.log('onSocketError', e);
+        Logger.log('onSocketError', e);
         this.stop();
     }
 
     onSocketTimeout() {
-        // Logger.log('onSocketTimeout');
+        Logger.log('onSocketTimeout');
         this.stop();
     }
 

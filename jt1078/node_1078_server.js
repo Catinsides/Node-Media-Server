@@ -1,7 +1,7 @@
 const Logger = require('../node_core_logger');
 const Net = require('net');
 const Node1078Session = require('./node_1078_session');
-const NodeCoreUtils = require('../node_core_utils');
+// const NodeCoreUtils = require('../node_core_utils');
 const context = require('../node_core_ctx');
 const S1078_PORT = 7612;
 const { accessSync, constants } = require('fs');
@@ -29,6 +29,10 @@ class Node1078Server {
 
         this.tcpServer.listen(this.port, () => {
             Logger.log(`Node Media 1078 Server started on port: ${this.port}`);
+        });
+
+        this.tcpServer.on('connection', socket => {
+            Logger.log('Node Media 1078 Server, new socket connection, from ', socket.address());
         });
 
         this.tcpServer.on('error', (e) => {
