@@ -7,5 +7,5 @@
 
 ```
 docker build -t mynms .
-docker run -it -p 1935:1935 -p 8000:8000 -p 8443:8443 -v $PWD/media/:/usr/src/nodemediaserver/media -d mynms
+docker run -d -p 1935:1935 -p 8000:8001 -p 7612:7612 mynms
 ```
