@@ -93,6 +93,36 @@ const mkdirsSync = function (filePath) {
     }
 }
 
+const net = require('net');
+const fs = require('fs');
+
+class UnixStream {
+    constructor(path, stream, onSocket) {
+        this.url = 'unix:' + path;
+
+        try {
+            fs.statSync(path)
+            fs.unlinkSync(path)
+        } catch (err) {
+            // console.error('UnixStream: create sock error.');
+        }
+
+        const server = net.createServer(onSocket);
+        stream.on('finish', () => {
+            server.close();
+        })
+        server.listen(path);
+    }
+}
+
+function StreamInput(path, stream) {
+    return new UnixStream(path, stream, socket => stream.pipe(socket));
+}
+
+function StreamOutput(path, stream) {
+    return new UnixStream(path, stream, socket => socket.pipe(stream));
+}
+
 module.exports = {
     HEAD,
     HEXOFHEAD,
@@ -101,4 +131,6 @@ module.exports = {
     RtpPacket,
     mkfifoSync,
     mkdirsSync,
+    StreamInput,
+    StreamOutput,
 }

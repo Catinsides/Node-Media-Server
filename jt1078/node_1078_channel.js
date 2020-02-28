@@ -1,9 +1,8 @@
 const context = require("../node_core_ctx");
 const Logger = require("../node_core_logger");
-const { RtpPacket, mkfifoSync } = require("./helper");
+const { RtpPacket, StreamInput } = require("./helper");
 const { spawn } = require("child_process");
-const { unlinkSync, openSync, closeSync, createWriteStream } = require('fs');
-const os = require('os');
+const stream = require('stream');
 
 class Node1078Channel {
     constructor(config) {
@@ -13,22 +12,18 @@ class Node1078Channel {
         this.stream_id = config.stream_id;
         this.id = this.stream_id;
         // this.isStreaming = false;
-        this.localhost = os.networkInterfaces().eth0[0].address;
         this.port = this.config.rtmp.port;
-        this.publishStreamPath = `rtmp://${this.localhost}:${this.port}/live/stream_${this.stream_id}`
+        this.publishStreamPath = `rtmp://*:${this.port}/live/stream_${this.stream_id}`
         this.rtpPacket = {
             payload: Buffer.alloc(0)
         };
         this.rtpPackets = [];
         this.FFMPEG = config.s1078.ffmpeg;
         this.PIPESFOLDER = config.s1078.pipes_folder;
-        this.audioProcess = null;
-        // this.videoProcess = null;
         this.ffmpegProcess = null;
         this.audioFifoConf = null;
         this.videoFifoConf = null;
         context.channels.set(this.id, this);
-        this.debug = false;
     }
 
     pushPacket(buff) {
@@ -38,7 +33,7 @@ class Node1078Channel {
         }
     }
 
-    run() {
+    consume() {
         while (this.rtpPackets.length > 0) {
             let rtpPacket = this.rtpPackets.shift();
             let { frameTypeVal: { pt }} = rtpPacket;
@@ -59,11 +54,9 @@ class Node1078Channel {
     }
     
     stop() {
-        this.stopProcess(this.audioProcess);
-        this.stopProcess(this.ffmpegProcess);
-        // this.stopProcess(this.videoProcess);
         this.closeFifo(this.audioFifoConf);
         this.closeFifo(this.videoFifoConf);
+        this.stopProcess(this.ffmpegProcess);
 
         // if (this.isStreaming) {
         //     this.isStreaming = false;
@@ -83,93 +76,65 @@ class Node1078Channel {
     }
 
     audioHandler(rtpPacket) {
-        if (!this.audioProcess) {
-            var cmds = [
-                '-loglevel', 'panic',
-                '-probesize', '32',
-                '-f', 'g726le',
-                '-code_size', '5',
-                '-ar', '8000',
-                '-ac', '1',
-                '-i', '-',
-                '-ar', '44100',
-                '-acodec', 'libmp3lame',
-                '-f', 'mp3',
-                'pipe:1'
-            ];
-            this.audioProcess = spawn(this.FFMPEG, cmds);
-
-            if (this.ffmpegProcess) {
-                if (!this.audioFifoConf.fwStream) {
-                    this.audioFifoConf.fwStream = createWriteStream(this.audioFifoConf.path);
-                }
-                this.audioProcess.stdout.pipe(this.audioFifoConf.fwStream);
-            }
-            if (this.debug) {
-                this.audioProcess.stderr.on('data', data => {
-                    console.log(data.toString());
-                });
-            }
+        if (this.ffmpegProcess && this.audioFifoConf) {
+            this.audioFifoConf.fwStream.write(rtpPacket.payload);
         }
-
-        this.audioProcess.stdin.write(rtpPacket.payload);
     }
 
     videoHandler(rtpPacket) {
-        if (this.ffmpegProcess) {
-            if (!this.videoFifoConf.fwStream) {
-                this.videoFifoConf.fwStream = createWriteStream(this.videoFifoConf.path);
-            }
+        if (this.ffmpegProcess && this.videoFifoConf) {
             this.videoFifoConf.fwStream.write(rtpPacket.payload);
         }
     }
 
+    // 暂音频只支持g711a
     initFFmpeg() {
         if (!this.videoFifoConf) {
-            var path = mkfifoSync(`${this.PIPESFOLDER}/video_${this.id}`);
+            let path = `${this.PIPESFOLDER}/video_${this.id}.sock`;
             this.videoFifoConf = {
                 path,
-                fd: openSync(path, 'r+'),
+                fwStream: new stream.PassThrough(),
             };
+            this.videoFifoConf.url = StreamInput(path, this.videoFifoConf.fwStream).url;
         }
         if (!this.audioFifoConf) {
-            var path = mkfifoSync(`${this.PIPESFOLDER}/audio_${this.id}`);
+            let path = `${this.PIPESFOLDER}/audio_${this.id}.sock`;
             this.audioFifoConf = {
                 path,
-                fd: openSync(path, 'r+'),
+                fwStream: new stream.PassThrough(),
             };
+            this.audioFifoConf.url = StreamInput(path, this.audioFifoConf.fwStream).url;
         }
+
         if (!this.ffmpegProcess) {
-            var audioFifo = this.audioFifoConf.path;
-            var videoFifo = this.videoFifoConf.path;
+            var audioFifo = this.audioFifoConf.url;
+            var videoFifo = this.videoFifoConf.url;
             var cmds = [
-                '-loglevel', 'panic',
+                '-loglevel', 'debug',
                 '-probesize', '32',
                 '-re',
                 '-r', '16',
                 '-f', 'h264',
                 '-i', videoFifo,
-                '-f', 'mp3',
+                '-f', 'alaw',
+                '-ar', '8000',
+                '-ac', '1',
                 '-i', audioFifo,
                 '-map', '0:v',
                 '-map', '1:a',
                 '-c:v', 'copy',
                 '-c:a', 'aac',
-                '-strict', '-2',
+                '-strict', 'experimental',
                 '-preset', 'ultrafast',
                 '-tune', 'zerolatency',
-                // '-profile:v', 'baseline',
                 '-f', 'flv',
                 this.publishStreamPath
             ];
 
             this.ffmpegProcess = spawn(this.FFMPEG, cmds);
-
-            if (this.debug) {
-                this.ffmpegProcess.stderr.on('data', data => {
-                    console.log(data.toString());
-                });
-            }
+            // this.ffmpegProcess.stderr.on('data', data => {
+            //     console.log(data.toString());
+            // });
         }
     }
 
@@ -186,14 +151,10 @@ class Node1078Channel {
 
     closeFifo(fifoConf) {
         if (fifoConf) {
-            var { fd, path, fwStream } = fifoConf;
-            if (fd >= 0) {
-                closeSync(fd);
-            }
-            if (path && typeof path === 'string') {
-                unlinkSync(path)
-            }
+            var { path, fwStream } = fifoConf;
             if (fwStream) {
+                fwStream.pause();
+                fwStream.end();
                 fwStream.destroy();
             }
         }

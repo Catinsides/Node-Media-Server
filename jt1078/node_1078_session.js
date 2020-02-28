@@ -148,7 +148,7 @@ class Node1078Session {
         }
 
         channelSession.pushPacket(data);
-        channelSession.run();
+        channelSession.consume();
     }
 
 }
