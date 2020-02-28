@@ -52,6 +52,10 @@ const config = {
   }
 };
 
+// const blocked = require('blocked');
+// blocked(ms => {
+//   console.log("EVENT LOOP Blocked", ms);
+// });
 
 let nms = new NodeMediaServer(config)
 nms.run();

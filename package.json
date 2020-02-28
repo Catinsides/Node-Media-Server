@@ -32,5 +32,9 @@
   },
   "engines": {
     "node": ">=8.0.0"
+  },
+  "devDependencies": {
+    "blocked": "^1.3.0",
+    "nodemon": "^2.0.2"
   }
 }
