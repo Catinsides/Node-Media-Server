@@ -53,6 +53,7 @@ class Node1078Channel {
         }
     }
     
+    // FIXME: read ECONNRESET
     stop() {
         this.closeFifo(this.audioFifoConf);
         this.closeFifo(this.videoFifoConf);
@@ -132,6 +133,7 @@ class Node1078Channel {
             ];
 
             this.ffmpegProcess = spawn(this.FFMPEG, cmds);
+            this.ffmpegProcess.stdin.end();
             // this.ffmpegProcess.stderr.on('data', data => {
             //     console.log(data.toString());
             // });
@@ -140,10 +142,6 @@ class Node1078Channel {
 
     stopProcess(_processes) {
         if (_processes) {
-            _processes.stdin.pause();
-            _processes.stdin.end();
-            _processes.stdin.destroy();
-            _processes.stdout.destroy();
             _processes.kill('SIGKILL');
             _processes = null;
         }
