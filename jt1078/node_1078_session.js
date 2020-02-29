@@ -147,8 +147,7 @@ class Node1078Session {
             channelSession = new Node1078Channel(config);
         }
 
-        channelSession.pushPacket(data);
-        channelSession.consume();
+        channelSession.consume(data);
     }
 
 }
