@@ -64,8 +64,8 @@ class RtpPacket {
             this.payload = buff.slice(30, 30 + this.dataLength);
         }
 
+        this.isVedioFrame = this.frameTypeVal.ft === 0 || this.frameTypeVal.ft === 1 || this.frameTypeVal.ft === 2;
         this.isAudioFrame = this.frameTypeVal.ft === 3;
-        this.isVedioFrame = this.mediaType === 98;
         this.isTpData = this.frameTypeVal.ft === 4;
     }
 
