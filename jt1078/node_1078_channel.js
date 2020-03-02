@@ -1,8 +1,8 @@
 const context = require("../node_core_ctx");
 const Logger = require("../node_core_logger");
-const { RtpPacket, StreamInput } = require("./helper");
-const { spawn } = require("child_process");
+const { RtpPacket, redisClient, StreamInput } = require("./helper");
 const stream = require('stream');
+const { createFactory } = require('./factory');
 
 class InputStream extends stream.Transform {
     constructor(opts) {
@@ -53,67 +53,11 @@ class Node1078Channel {
         this.FFMPEG = config.s1078.ffmpeg;
         this.PIPESFOLDER = config.s1078.pipes_folder;
         this.ffmpegProcess = null;
-        this.createProcess();
+        this.init();
         context.channels.set(this.id, this);
     }
 
-    createAudioProcess() {
-        var audioSock = this.audioInputStream.url;
-        var cmds = [
-            '-loglevel', 'debug',
-            '-probesize', '32',
-            '-re',
-            '-f', 'alaw',
-            '-ar', '8000',
-            '-ac', '1',
-            '-i', audioSock,
-            '-vn',
-            '-c:a', 'aac',
-            '-strict', 'experimental',
-            '-preset', 'ultrafast',
-            '-tune', 'zerolatency',
-            '-f', 'flv',
-            this.publishStreamPath
-        ];
-        var p = spawn(this.FFMPEG, cmds);
-        // p.stderr.on('data', data => {
-        //     console.log('==createAudioProcess==', data.toString());
-        // });
-        p.on('error', err => {
-            console.log(err);
-            this.stop();
-        });
-        return p;
-    }
-
-    createVideoProcess() {
-        var videoSock = this.videoInputStream.url;
-        var cmds = [
-            '-loglevel', 'debug',
-            '-probesize', '32',
-            '-re',
-            '-r', '16',
-            '-i', videoSock,
-            '-an',
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast',
-            '-tune', 'zerolatency',
-            '-profile:v', 'baseline',
-            '-f', 'flv',
-            this.publishStreamPath
-        ];
-        var p = spawn(this.FFMPEG, cmds);
-        // p.stderr.on('data', data => {
-        //     console.log('==createVideoProcess==', data.toString());
-        // });
-        p.on('error', err => {
-            console.log(err);
-            this.stop();
-        });
-        return p;
-    }
-
-    createProcess() {
+    init() {
         this.videoInputStream = new InputStream({
             type: 'video',
             path: `${this.PIPESFOLDER}/video_${this.id}.sock`,
@@ -122,42 +66,101 @@ class Node1078Channel {
             type: 'audio',
             path: `${this.PIPESFOLDER}/audio_${this.id}.sock`,
         });
-
         this.videoInputStream.on("transevent", this.onTransEvent.bind(this));
         this.audioInputStream.on("transevent", this.onTransEvent.bind(this));
+        this.factory = createFactory({
+            ffmpeg: this.FFMPEG,
+            videoInput: this.videoInputStream.url,
+            audioInput: this.audioInputStream.url,
+            output: this.publishStreamPath,
+        });
 
-        var videoSock = this.videoInputStream.url;
-        var audioSock = this.audioInputStream.url;
-        var cmds = [
-            '-loglevel', 'debug',
-            '-probesize', '32',
-            '-re',
-            '-r', '16',
-            '-f', 'h264',
-            '-i', videoSock,
-            '-f', 'alaw',
-            '-ar', '8000',
-            '-ac', '1',
-            '-i', audioSock,
-            '-map', '0:v',
-            '-map', '1:a',
-            '-c:v', 'copy',
-            '-c:a', 'aac',
-            '-strict', 'experimental',
-            '-preset', 'ultrafast',
-            '-tune', 'zerolatency',
-            '-f', 'flv',
-            this.publishStreamPath
-        ];
+        if (!this.config.s1078.redis) {
+            this.createProcess();
+            return;
+        }
 
-        this.ffmpegProcess = spawn(this.FFMPEG, cmds);
-        // this.ffmpegProcess.stderr.on('data', data => {
-        //     console.log('==createProcess==', data.toString());
-        // });
-        this.ffmpegProcess.on('error', err => {
-            console.log(err);
+        this.connectRedis(this.config.s1078.redis, err => {
+            if (err) {
+                Logger.error(err);
+                this.createProcess();
+                return;
+            }
+
+            var key = 'NMS:1078:FFMPEG:CMDS:H';
+            this.redisClient.hget(key, this.SIMNO, (err, res) => {
+                if (err || !res) {
+                    if (err) Logger.error(err);
+                    this.createProcess();
+                    return;
+                }
+
+                try {
+                    var cmds = JSON.parse(res);
+                } catch (e) {
+                    Logger.error(err);
+                    this.createProcess();
+                    return;
+                }
+
+                var { main, audio, video } = cmds;
+                this.mainCmds = main;
+                this.audioCmds = audio;
+                this.videoCmds = video;
+                this.createProcess();
+            });
+        });
+    }
+
+    connectRedis(config, callback) {
+        var { host, port, pwd } = config;
+        var hasCallback = false;
+        var timer = setTimeout(() => {
+            hasCallback = true;
+            callback(new Error('Redis connection timeout.'));
+        }, 100);
+
+        this.redisClient = redisClient(port, host, pwd);
+        this.redisClient.on('connect', _ => {
+            if (hasCallback) return;
+            clearTimeout(timer);
+            return callback();
+        });
+        this.redisClient.on('error', err => {
+            if (hasCallback) return;
+            Logger.error(err);
+            return callback(err);
+        });
+    }
+
+    createAudioProcess() {
+        var cmds = this.audioCmds ? this.audioCmds : null;
+        var p = this.factory.g711a(cmds);
+        p.on('error', err => {
+            Logger.error(err);
             this.stop();
         });
+        return p;
+    }
+
+    createVideoProcess() {
+        var cmds = this.videoCmds ? this.videoCmds : null;
+        var p = this.factory.h264(cmds);
+        p.on('error', err => {
+            Logger.error(err);
+            this.stop();
+        });
+        return p;
+    }
+
+    createProcess() {
+        var cmds = this.mainCmds ? this.mainCmds : null;
+        var p = this.factory.dflt(cmds);
+        p.on('error', err => {
+            Logger.error(err);
+            this.stop();
+        });
+        this.ffmpegProcess = p;
     }
 
     onTransEvent(event, stream) {

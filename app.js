@@ -46,6 +46,11 @@ const config = {
   // },
   s1078: {
     ffmpeg: '/bin/ffmpeg',    // 此为docker中路径
+    // redis: {
+    //   host: "localhost",
+    //   port: "6379",
+    //   pwd: ""
+    // },
     pipes_folder: '/tmp/nms_1078_pipes',    // named pipe 路径
     port: 7612,
     ping_timeout: 60

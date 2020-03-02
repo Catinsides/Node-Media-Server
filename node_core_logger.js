@@ -16,6 +16,10 @@ const setLogType = (type) => {
   logType = type;
 };
 
+const getLogType = () => {
+  return logType;
+};
+
 const logTime = () => {
   let nowDate = new Date();
   return nowDate.toLocaleDateString() + ' ' + nowDate.toLocaleTimeString([], { hour12: false });
@@ -54,6 +58,6 @@ const ffdebug = (...args) => {
 module.exports = {
   LOG_TYPES,
   setLogType,
-
+  getLogType,
   log, error, warning, debug, ffdebug
 }

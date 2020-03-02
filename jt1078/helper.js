@@ -123,6 +123,19 @@ function StreamOutput(path, stream) {
     return new UnixStream(path, stream, socket => socket.pipe(stream));
 }
 
+const redis = require("redis");
+function redisClient(port, host, pwd) {
+    var rc = redis.createClient(port, host);
+    if (pwd) {
+        rc.auth(pwd, function (err) {
+            if (err) {
+                Logger.error('Redis Auth Error!', err);
+            }
+        });
+    }
+    return rc;
+}
+
 module.exports = {
     HEAD,
     HEXOFHEAD,
@@ -133,4 +146,5 @@ module.exports = {
     mkdirsSync,
     StreamInput,
     StreamOutput,
+    redisClient,
 }
