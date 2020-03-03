@@ -165,7 +165,9 @@ class Node1078Session {
                 let session = context.sessions.get(key);
 
                 if (session instanceof NodeRtmpSession) {
-                    if (session.players.size == 0) {
+                    let { publishStreamPath, players } = session;
+
+                    if (publishStreamPath.indexOf(this.SIMNO) != -1 && players.size == 0) {
                         Logger.warning(`There is no players for [SIMNO: ${this.SIMNO}], the socket will be stopped.`)
                         this.stop();
                     }
