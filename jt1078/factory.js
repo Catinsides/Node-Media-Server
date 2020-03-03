@@ -10,10 +10,8 @@ class FFmpegFactory {
         this.output = output;
         this.logType = Logger.getLogType();
         this.loglevel = 'panic';
-        
-        if (this.logType === 1 || this.logType === 2) {
-            this.loglevel = 'info';
-        } else if (this.logType === 3) {
+
+        if (this.logType > 3) {
             this.loglevel = 'debug';
         }
     }
