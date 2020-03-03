@@ -13,14 +13,14 @@ class InputStream extends stream.Transform {
         this.type = opts.type;
         this.url = StreamInput(this.path, this).url;
         this.isWritable = true;
-        this.timer = setTimeout(() => { this.onTimeout(); }, 1500);
+        this.timer = setTimeout(() => { this.onTimeout(); }, 2500);
     }
 
     _transform(chunk, encoding, callback){
         this.push(chunk);
         this.isWritable = true;
         clearTimeout(this.timer);
-        this.timer = setTimeout(() => { this.onTimeout(); }, 1500);
+        this.timer = setTimeout(() => { this.onTimeout(); }, 2500);
         callback();
     }
     
