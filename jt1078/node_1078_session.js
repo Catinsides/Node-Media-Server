@@ -3,6 +3,7 @@ const RTMP_PING_TIMEOUT = 30000;
 const context = require("../node_core_ctx");
 const Logger = require("../node_core_logger");
 const NodeCoreUtils = require("../node_core_utils");
+const NodeRtmpSession = require('../node_rtmp_session');
 const Node1078Channel = require('./node_1078_channel');
 const { VPXCCHEAD } = require('./helper');
 
@@ -21,6 +22,9 @@ class Node1078Session {
             head: new Buffer.alloc(5)
         };
         this.isStarting = false;
+        this.interval = setInterval(() => {
+            this.checkPlayers();
+        }, 60 * 1000);
         context.sessions.set(this.id, this);
     }
 
@@ -30,10 +34,11 @@ class Node1078Session {
         this.socket.on("error", this.onSocketError.bind(this));
         this.socket.on("timeout", this.onSocketTimeout.bind(this));
         this.socket.setTimeout(this.pingTimeout);
-        this.isStarting = true;
     }
 
     stop() {
+        clearInterval(this.interval);
+
         if (this.isStarting) {
             this.isStarting = false;
 
@@ -73,6 +78,8 @@ class Node1078Session {
     }
 
     onSocketData(data) {
+        this.isStarting = true;
+
         let dataLen = data.length;
         let idx = 0, STEP = 5;
 
@@ -148,6 +155,23 @@ class Node1078Session {
         }
 
         channelSession.consume(data);
+    }
+
+    // 如果没有观看者，关闭socket
+    checkPlayers() {
+        if (!this.SIMNO) return;
+        if (context.sessions.size > 0) {
+            for (let key of context.sessions.keys()) {
+                let session = context.sessions.get(key);
+
+                if (session instanceof NodeRtmpSession) {
+                    if (session.players.size == 0) {
+                        Logger.warning(`There is no players for [SIMNO: ${this.SIMNO}], the socket will be stopped.`)
+                        this.stop();
+                    }
+                }
+            }
+        }
     }
 
 }
