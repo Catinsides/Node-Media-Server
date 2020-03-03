@@ -140,7 +140,7 @@ class Node1078Channel {
             Logger.error(err);
             this.stop();
         });
-        return p;
+        this.ffmpegProcess = p;
     }
 
     createVideoProcess() {
@@ -150,7 +150,7 @@ class Node1078Channel {
             Logger.error(err);
             this.stop();
         });
-        return p;
+        this.ffmpegProcess = p;
     }
 
     createProcess() {
@@ -207,6 +207,8 @@ class Node1078Channel {
 
     stopProcess(_processes) {
         if (_processes) {
+            _processes.stdin.destroy();
+            _processes.stdout.destroy();
             _processes.kill('SIGKILL');
             _processes = null;
         }
